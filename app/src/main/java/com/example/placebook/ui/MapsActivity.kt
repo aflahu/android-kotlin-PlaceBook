@@ -1,4 +1,4 @@
-package com.example.placebook
+package com.example.placebook.ui
 
 import android.content.pm.PackageManager
 import androidx.appcompat.app.AppCompatActivity
@@ -12,27 +12,30 @@ import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.OnMapReadyCallback
 import com.google.android.gms.maps.SupportMapFragment
-import com.google.android.gms.maps.model.LatLng
 import android.Manifest
 import android.graphics.Bitmap
-import android.widget.Toast
+import androidx.activity.viewModels
+import androidx.lifecycle.Observer
+import com.example.placebook.R
 import com.example.placebook.adapter.BookMarkInfoWindowAdapter
+import com.example.placebook.model.Bookmark
+import com.example.placebook.viewmodel.MapsViewModel
 import com.google.android.gms.common.api.ApiException
-import com.google.android.gms.maps.model.BitmapDescriptorFactory
-import com.google.android.gms.maps.model.MarkerOptions
-import com.google.android.gms.maps.model.PointOfInterest
+import com.google.android.gms.maps.model.*
 import com.google.android.libraries.places.api.Places
 import com.google.android.libraries.places.api.model.Place
 import com.google.android.libraries.places.api.net.FetchPhotoRequest
 import com.google.android.libraries.places.api.net.FetchPlaceRequest
 import com.google.android.libraries.places.api.net.PlacesClient
-import java.lang.Exception
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
 
 class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
 
     private lateinit var mMap: GoogleMap
     private lateinit var fusedLocationClient: FusedLocationProviderClient
     private lateinit var placesClient: PlacesClient
+    private val mapsViewModel by viewModels<MapsViewModel>()
 
     companion object {
         private const val REQUEST_LOCATION = 1
@@ -170,8 +173,62 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
             MarkerOptions().position(place.latLng as LatLng).title(place.name)
                 .snippet(place.phoneNumber)
         )
-        marker?.tag = photo
+        marker?.tag = PlaceInfo(place, photo)
     }
+
+    private fun setupMapListeners() {
+        mMap.setInfoWindowAdapter(BookMarkInfoWindowAdapter(this))
+        mMap.setOnPoiClickListener {
+            displayPoi(it)
+        }
+        mMap.setOnInfoWindowClickListener {
+            handleInfoWindowClick(it)
+        }
+    }
+
+    private fun handleInfoWindowClick(marker: Marker) {
+        val placeInfo = (marker.tag as PlaceInfo)
+        if (placeInfo.place != null) {
+            GlobalScope.launch {
+                mapsViewModel.addBookmarkFromPlace(placeInfo.place, placeInfo.image)
+            }
+        }
+        marker.remove()
+    }
+
+    private fun createBookmarkerObserver() {
+        mapsViewModel.getBookmarkMarkerViews()?.observe(
+            this, Observer<List<MapsViewModel.BookmarkMarkerView>> {
+                mMap.clear()
+                it?.let {
+                    displayAllBookMarks(it)
+                }
+            }
+        )
+    }
+
+    private fun displayAllBookMarks(
+        bookmarks: List<MapsViewModel.BookmarkMarkerView>
+    ) {
+        for (bookmark in bookmarks) {
+            addPlaceMarker(bookmark)
+        }
+    }
+
+    private fun addPlaceMarker(
+        bookmark: MapsViewModel.BookmarkMarkerView
+    ): Marker? {
+        val marker = mMap.addMarker(
+            MarkerOptions().position(bookmark.location)
+                .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE))
+                .alpha(0.8f)
+        )
+
+        marker.tag = bookmark
+
+        return marker
+    }
+
 
     /**
      * Manipulates the map once available.
@@ -184,14 +241,9 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
      */
     override fun onMapReady(googleMap: GoogleMap) {
         mMap = googleMap
+        setupMapListeners()
+        createBookmarkerObserver()
         getCurrentLocation()
-
-        mMap.setOnPoiClickListener {
-//            Toast.makeText(this, it.name, Toast.LENGTH_LONG).show()
-            displayPoi(it)
-        }
-
-        mMap.setInfoWindowAdapter(BookMarkInfoWindowAdapter(this))
     }
 
     private fun setupPlacesClient() {
@@ -202,4 +254,6 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
     private fun setupLocationClient() {
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
     }
+
+    class PlaceInfo(val place: Place? = null, val image: Bitmap? = null)
 }
