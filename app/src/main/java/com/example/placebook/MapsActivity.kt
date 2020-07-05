@@ -13,13 +13,26 @@ import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.OnMapReadyCallback
 import com.google.android.gms.maps.SupportMapFragment
 import com.google.android.gms.maps.model.LatLng
-import com.google.android.gms.maps.model.MarkerOptions
 import android.Manifest
+import android.graphics.Bitmap
+import android.widget.Toast
+import com.example.placebook.adapter.BookMarkInfoWindowAdapter
+import com.google.android.gms.common.api.ApiException
+import com.google.android.gms.maps.model.BitmapDescriptorFactory
+import com.google.android.gms.maps.model.MarkerOptions
+import com.google.android.gms.maps.model.PointOfInterest
+import com.google.android.libraries.places.api.Places
+import com.google.android.libraries.places.api.model.Place
+import com.google.android.libraries.places.api.net.FetchPhotoRequest
+import com.google.android.libraries.places.api.net.FetchPlaceRequest
+import com.google.android.libraries.places.api.net.PlacesClient
+import java.lang.Exception
 
 class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
 
     private lateinit var mMap: GoogleMap
     private lateinit var fusedLocationClient: FusedLocationProviderClient
+    private lateinit var placesClient: PlacesClient
 
     companion object {
         private const val REQUEST_LOCATION = 1
@@ -35,6 +48,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         mapFragment.getMapAsync(this)
 
         setupLocationClient()
+        setupPlacesClient()
     }
 
     private fun requestLocationPermissions() {
@@ -58,8 +72,6 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
                 val location = it.result
                 if (location != null) {
                     val latLng = LatLng(location.latitude, location.longitude)
-                    mMap.addMarker(MarkerOptions().position(latLng)).title = "Youre here"
-
                     val update = CameraUpdateFactory.newLatLngZoom(latLng, 16.0f)
                     mMap.moveCamera(update)
                 } else {
@@ -83,6 +95,84 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         }
     }
 
+    private fun displayPoi(pointOfInterest: PointOfInterest) {
+        displayPoiGetPlaceStep(pointOfInterest)
+    }
+
+    private fun displayPoiGetPlaceStep(pointOfInterest: PointOfInterest) {
+        val placeId = pointOfInterest.placeId
+
+        val placeFields = listOf(
+            Place.Field.ID,
+            Place.Field.NAME,
+            Place.Field.PHONE_NUMBER,
+            Place.Field.PHOTO_METADATAS,
+            Place.Field.ADDRESS,
+            Place.Field.LAT_LNG
+        )
+
+        val request = FetchPlaceRequest.builder(placeId, placeFields).build()
+
+        placesClient.fetchPlace(request).addOnSuccessListener { response ->
+            val place = response.place
+            displayPoiGetPhotoStep(place)
+        }.addOnFailureListener { exception ->
+            if (exception is ApiException) {
+                val statusCode = exception.statusCode
+                Log.e(
+                    TAG,
+                    "Place not found: " + exception.message + ", " + "statusCode: " + statusCode
+                )
+            }
+        }
+    }
+
+    private fun displayPoiGetPhotoStep(place: Place) {
+        val photoMetadata = place.photoMetadatas?.get(0)
+
+        if (photoMetadata == null) {
+            displayPoiDisplayStep(place, null)
+            return
+        }
+
+        val photoRequest = FetchPhotoRequest.builder(photoMetadata)
+            .setMaxWidth(resources.getDimensionPixelSize(R.dimen.default_image_width))
+            .setMaxWidth(resources.getDimensionPixelSize(R.dimen.default_image_height)).build()
+
+        placesClient.fetchPhoto(photoRequest).addOnSuccessListener { fetchPhotoResponse ->
+            val bitmap = fetchPhotoResponse.bitmap
+            displayPoiDisplayStep(place, bitmap)
+        }.addOnFailureListener { exception ->
+            if (exception is ApiException) {
+                val statusCode = exception.statusCode
+                Log.e(
+                    TAG,
+                    "Place not found: " + exception.message + ", " + "statusCode: " + statusCode
+                )
+            }
+        }
+    }
+
+    private fun displayPoiDisplayStep(place: Place, photo: Bitmap?) {
+//        val iconPhoto = if (photo == null) {
+//            BitmapDescriptorFactory.defaultMarker()
+//        } else {
+//            BitmapDescriptorFactory.fromBitmap(photo)
+//        }
+
+
+//        mMap.addMarker(
+//            MarkerOptions().position(place.latLng as LatLng).icon(iconPhoto).title(place.name)
+//                .snippet(place.phoneNumber)
+//        )
+//    }
+        val marker = mMap.addMarker(
+            MarkerOptions().position(place.latLng as LatLng).title(place.name)
+                .snippet(place.phoneNumber)
+        )
+        marker?.tag = photo
+    }
+
     /**
      * Manipulates the map once available.
      * This callback is triggered when the map is ready to be used.
@@ -95,6 +185,18 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
     override fun onMapReady(googleMap: GoogleMap) {
         mMap = googleMap
         getCurrentLocation()
+
+        mMap.setOnPoiClickListener {
+//            Toast.makeText(this, it.name, Toast.LENGTH_LONG).show()
+            displayPoi(it)
+        }
+
+        mMap.setInfoWindowAdapter(BookMarkInfoWindowAdapter(this))
+    }
+
+    private fun setupPlacesClient() {
+        Places.initialize(applicationContext, getString(R.string.google_maps_key))
+        placesClient = Places.createClient(this)
     }
 
     private fun setupLocationClient() {
