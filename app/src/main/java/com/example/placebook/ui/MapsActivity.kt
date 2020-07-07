@@ -13,6 +13,7 @@ import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.OnMapReadyCallback
 import com.google.android.gms.maps.SupportMapFragment
 import android.Manifest
+import android.content.Intent
 import android.graphics.Bitmap
 import androidx.activity.viewModels
 import androidx.lifecycle.Observer
@@ -36,11 +37,6 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
     private lateinit var fusedLocationClient: FusedLocationProviderClient
     private lateinit var placesClient: PlacesClient
     private val mapsViewModel by viewModels<MapsViewModel>()
-
-    companion object {
-        private const val REQUEST_LOCATION = 1
-        private const val TAG = "MapsActivity"
-    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -157,23 +153,12 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
     }
 
     private fun displayPoiDisplayStep(place: Place, photo: Bitmap?) {
-//        val iconPhoto = if (photo == null) {
-//            BitmapDescriptorFactory.defaultMarker()
-//        } else {
-//            BitmapDescriptorFactory.fromBitmap(photo)
-//        }
-
-
-//        mMap.addMarker(
-//            MarkerOptions().position(place.latLng as LatLng).icon(iconPhoto).title(place.name)
-//                .snippet(place.phoneNumber)
-//        )
-//    }
         val marker = mMap.addMarker(
             MarkerOptions().position(place.latLng as LatLng).title(place.name)
                 .snippet(place.phoneNumber)
         )
         marker?.tag = PlaceInfo(place, photo)
+        marker?.showInfoWindow()
     }
 
     private fun setupMapListeners() {
@@ -187,13 +172,25 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
     }
 
     private fun handleInfoWindowClick(marker: Marker) {
-        val placeInfo = (marker.tag as PlaceInfo)
-        if (placeInfo.place != null) {
-            GlobalScope.launch {
-                mapsViewModel.addBookmarkFromPlace(placeInfo.place, placeInfo.image)
+        when (marker.tag) {
+            is MapsActivity.PlaceInfo -> {
+
+                val placeInfo = (marker.tag as PlaceInfo)
+                if (placeInfo.place != null) {
+                    GlobalScope.launch {
+                        mapsViewModel.addBookmarkFromPlace(placeInfo.place, placeInfo.image)
+                    }
+                }
+                marker.remove()
+            }
+            is MapsViewModel.BookmarkMarkerView -> {
+                val bookmarkMarkerView = (marker.tag as MapsViewModel.BookmarkMarkerView)
+                marker.hideInfoWindow()
+                bookmarkMarkerView.id?.let {
+                    startBookmarkDetails(it)
+                }
             }
         }
-        marker.remove()
     }
 
     private fun createBookmarkerObserver() {
@@ -219,7 +216,10 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         bookmark: MapsViewModel.BookmarkMarkerView
     ): Marker? {
         val marker = mMap.addMarker(
-            MarkerOptions().position(bookmark.location)
+            MarkerOptions()
+                .position(bookmark.location)
+                .title(bookmark.name)
+                .snippet(bookmark.phone)
                 .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE))
                 .alpha(0.8f)
         )
@@ -251,9 +251,21 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         placesClient = Places.createClient(this)
     }
 
+    private fun startBookmarkDetails(bookmarkId: Long) {
+        val intent = Intent(this, BookmarkDetailsActivity::class.java)
+        intent.putExtra(EXTRA_BOOKMARK_ID, bookmarkId)
+        startActivity(intent)
+    }
+
     private fun setupLocationClient() {
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
     }
 
     class PlaceInfo(val place: Place? = null, val image: Bitmap? = null)
+
+    companion object {
+        const val EXTRA_BOOKMARK_ID = "com.example.placebook.EXTRA_BOOKMARK_ID"
+        private const val REQUEST_LOCATION = 1
+        private const val TAG = "MapsActivity"
+    }
 }
