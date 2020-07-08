@@ -16,21 +16,6 @@ class BookmarkDetailsViewModel(application: Application) : AndroidViewModel(appl
     private var bookmarkRepo: BookmarkRepo = BookmarkRepo((getApplication()))
     private var bookmarkDetailsView: LiveData<BookmarkDetailsView>? = null
 
-    data class BookmarkDetailsView(
-        var id: Long? = null,
-        var name: String = "",
-        var phone: String = "",
-        var address: String = "",
-        var notes: String = ""
-    ) {
-        fun getImage(context: Context): Bitmap? {
-            id?.let {
-                return ImageUtils.loadBitmapFromFile(context, Bookmark.generateImageFileName(it))
-            }
-            return null
-        }
-    }
-
     fun getBookmark(bookmarkId: Long): LiveData<BookmarkDetailsView>? {
         if (bookmarkDetailsView == null) {
             mapBookmarkToMarkView(bookmarkId)
@@ -75,6 +60,27 @@ class BookmarkDetailsViewModel(application: Application) : AndroidViewModel(appl
             val bookmark = bookmarkViewToBookmark(bookmarkView)
             bookmark?.let {
                 bookmarkRepo.updateBookmark(it)
+            }
+        }
+    }
+
+    data class BookmarkDetailsView(
+        var id: Long? = null,
+        var name: String = "",
+        var phone: String = "",
+        var address: String = "",
+        var notes: String = ""
+    ) {
+        fun getImage(context: Context): Bitmap? {
+            id?.let {
+                return ImageUtils.loadBitmapFromFile(context, Bookmark.generateImageFileName(it))
+            }
+            return null
+        }
+
+        fun setImage(context: Context, image: Bitmap) {
+            id?.let {
+                ImageUtils.saveBitmapToFile(context, image, Bookmark.generateImageFileName(it))
             }
         }
     }
