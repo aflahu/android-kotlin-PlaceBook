@@ -8,6 +8,9 @@ import android.os.Bundle
 import android.provider.MediaStore
 import android.view.Menu
 import android.view.MenuItem
+import android.view.View
+import android.widget.AdapterView
+import android.widget.ArrayAdapter
 import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
@@ -43,6 +46,7 @@ class BookmarkDetailsActivity : AppCompatActivity(),
 
                     populateFields()
                     populateImageView()
+                    populateCategoryList()
                 }
             }
         )
@@ -74,6 +78,46 @@ class BookmarkDetailsActivity : AppCompatActivity(),
         }
     }
 
+    private fun populateCategoryList() {
+
+        val bookmarkView = bookmarkDetailsView ?: return
+
+        val resourceId = bookmarkDetailsViewModel.getCategoryResourceId(bookmarkView.category)
+
+        resourceId?.let { imageViewCategory.setImageResource(it) }
+
+        val categories = bookmarkDetailsViewModel.getCategories()
+
+        val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, categories)
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+
+        spinnerCategory.adapter = adapter
+
+        val placeCategory = bookmarkView.category
+        spinnerCategory.setSelection(adapter.getPosition(placeCategory))
+
+        spinnerCategory.post { // prefent side effect
+            spinnerCategory.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+                override fun onItemSelected(
+                    parent: AdapterView<*>,
+                    view: View?,
+                    position: Int,
+                    id: Long
+                ) {
+                    val category = parent.getItemIdAtPosition(position) as String
+                    val resourceId = bookmarkDetailsViewModel.getCategoryResourceId(category)
+                    resourceId?.let { imageViewCategory.setImageResource(it) }
+
+                }
+
+                override fun onNothingSelected(parent: AdapterView<*>?) {
+                    // ruquired but not used
+                }
+            }
+        }
+
+    }
+
     private fun saveChanges() {
         val name = editTextName.text.toString()
         if (name.isEmpty()) {
@@ -85,6 +129,7 @@ class BookmarkDetailsActivity : AppCompatActivity(),
             bookmarkView.notes = editTextNotes.text.toString()
             bookmarkView.address = editTextAddress.text.toString()
             bookmarkView.phone = editTextPhone.text.toString()
+            bookmarkView.category = spinnerCategory.selectedItem as String
             bookmarkDetailsViewModel.updateBookmark(bookmarkView)
         }
         finish()

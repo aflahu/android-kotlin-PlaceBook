@@ -56,7 +56,9 @@ class BookmarkListAdapter(
         // 7
         holder.itemView.tag = bookmarkViewData
         holder.nameTextView.text = bookmarkViewData.name
-        holder.categoryImageView.setImageResource(R.mipmap.ic_other)
+        bookmarkViewData.categoryResourceId?.let {
+            holder.categoryImageView.setImageResource(it)
+        }
     }
 
     // 8
