@@ -188,6 +188,8 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
             handleInfoWindowClick(it)
         }
         fab.setOnClickListener { searchAtCurrentLocation() }
+
+        mMap.setOnMapLongClickListener { latLng -> newBookmark(latLng) }
     }
 
     private fun handleInfoWindowClick(marker: Marker) {
@@ -263,6 +265,13 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         location.latitude = bookmark.location.latitude
         location.longitude = bookmark.location.longitude
         updateMapToLocation(location)
+    }
+
+    private fun newBookmark(latLng: LatLng) {
+        GlobalScope.launch {
+            val bookmarkId = mapsViewModel.addBookmark(latLng)
+            bookmarkId?.let { startBookmarkDetails(it) }
+        }
     }
 
     private fun updateMapToLocation(location: Location) {
@@ -366,6 +375,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         )
         toggle.syncState()
     }
+
 
     private fun setupNavigationDrawer() {
         var layoutManager = LinearLayoutManager(this)

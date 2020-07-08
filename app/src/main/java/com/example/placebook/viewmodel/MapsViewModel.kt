@@ -12,6 +12,8 @@ import com.example.placebook.repository.BookmarkRepo
 import com.example.placebook.util.ImageUtils
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.libraries.places.api.model.Place
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
 
 class MapsViewModel(application: Application) : AndroidViewModel(application) {
     private val TAG = "MapsViewModel"
@@ -59,6 +61,15 @@ class MapsViewModel(application: Application) : AndroidViewModel(application) {
         val newId = bookmarkRepo.addBookmark(bookmark)
 
         Log.i(TAG, "New bookmark $newId added to the database")
+    }
+
+    fun addBookmark(latLng: LatLng): Long? {
+        val bookmark = bookmarkRepo.createBookmark()
+        bookmark.name = "Untitled"
+        bookmark.longtitude = latLng.longitude
+        bookmark.latitude = latLng.latitude
+        bookmark.category = "Other"
+        return bookmarkRepo.addBookmark(bookmark)
     }
 
     private fun bookmarkToBookmarkView(bookmark: Bookmark): MapsViewModel.BookmarkView {
