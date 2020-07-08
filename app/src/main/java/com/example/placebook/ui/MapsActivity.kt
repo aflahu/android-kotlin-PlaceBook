@@ -13,6 +13,7 @@ import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.OnMapReadyCallback
 import com.google.android.gms.maps.SupportMapFragment
 import android.Manifest
+import android.app.Activity
 import android.content.Intent
 import android.graphics.Bitmap
 import android.location.Location
@@ -24,13 +25,18 @@ import com.example.placebook.R
 import com.example.placebook.adapter.BookMarkInfoWindowAdapter
 import com.example.placebook.adapter.BookmarkListAdapter
 import com.example.placebook.viewmodel.MapsViewModel
+import com.google.android.gms.common.GooglePlayServicesNotAvailableException
+import com.google.android.gms.common.GooglePlayServicesRepairableException
 import com.google.android.gms.common.api.ApiException
 import com.google.android.gms.maps.model.*
 import com.google.android.libraries.places.api.Places
 import com.google.android.libraries.places.api.model.Place
+import com.google.android.libraries.places.api.model.RectangularBounds
 import com.google.android.libraries.places.api.net.FetchPhotoRequest
 import com.google.android.libraries.places.api.net.FetchPlaceRequest
 import com.google.android.libraries.places.api.net.PlacesClient
+import com.google.android.libraries.places.widget.Autocomplete
+import com.google.android.libraries.places.widget.model.AutocompleteActivityMode
 import kotlinx.android.synthetic.main.main_view_maps.*
 import kotlinx.android.synthetic.main.activity_maps.*
 import kotlinx.android.synthetic.main.drawer_view_maps.*
@@ -181,6 +187,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         mMap.setOnInfoWindowClickListener {
             handleInfoWindowClick(it)
         }
+        fab.setOnClickListener { searchAtCurrentLocation() }
     }
 
     private fun handleInfoWindowClick(marker: Marker) {
@@ -265,6 +272,56 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         )
     }
 
+    private fun searchAtCurrentLocation() {
+        // 1
+        val placeFields = listOf(
+            Place.Field.ID,
+            Place.Field.NAME,
+            Place.Field.PHONE_NUMBER,
+            Place.Field.PHOTO_METADATAS,
+            Place.Field.ADDRESS,
+            Place.Field.LAT_LNG,
+            Place.Field.TYPES
+        )
+        // 2
+        val bounds = RectangularBounds.newInstance(mMap.projection.visibleRegion.latLngBounds)
+        try {
+            // 3
+            val intent = Autocomplete.IntentBuilder(
+                AutocompleteActivityMode.OVERLAY, placeFields
+            ).setLocationBias(bounds).build(this)
+
+            startActivityForResult(intent, AUTOCOMPLETE_REQUEST_CODE)
+        } catch (e: GooglePlayServicesRepairableException) {
+
+        } catch (e: GooglePlayServicesNotAvailableException) {
+
+        }
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+
+        // 1
+        when (requestCode) {
+            AUTOCOMPLETE_REQUEST_CODE ->
+                // 2
+                if (resultCode == Activity.RESULT_OK && data != null) {
+                    // 3
+                    val place = Autocomplete.getPlaceFromIntent(data)
+
+                    // 4
+                    val location = Location("")
+                    location.latitude = place.latLng?.latitude ?: 0.0
+                    location.longitude = place.latLng?.longitude ?: 0.0
+                    updateMapToLocation(location)
+
+                    // 5
+                    displayPoiGetPhotoStep(place)
+                }
+        }
+    }
+
 
     /**
      * Manipulates the map once available.
@@ -323,5 +380,6 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         const val EXTRA_BOOKMARK_ID = "com.example.placebook.EXTRA_BOOKMARK_ID"
         private const val REQUEST_LOCATION = 1
         private const val TAG = "MapsActivity"
+        private const val AUTOCOMPLETE_REQUEST_CODE = 2
     }
 }
