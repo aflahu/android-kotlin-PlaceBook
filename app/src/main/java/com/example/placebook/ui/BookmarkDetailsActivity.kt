@@ -22,6 +22,7 @@ import com.example.placebook.util.ImageUtils
 import com.example.placebook.viewmodel.BookmarkDetailsViewModel
 import kotlinx.android.synthetic.main.activity_bookmark_details.*
 import java.io.File
+import java.net.URLEncoder
 
 class BookmarkDetailsActivity : AppCompatActivity(),
     PhotoOptionDialogFragment.PhotoOptionDialogListener {
@@ -35,6 +36,7 @@ class BookmarkDetailsActivity : AppCompatActivity(),
         setContentView(R.layout.activity_bookmark_details)
         setupToolbar()
         getIntentData()
+        setupFab()
     }
 
     private fun getIntentData() {
@@ -55,6 +57,10 @@ class BookmarkDetailsActivity : AppCompatActivity(),
 
     private fun setupToolbar() {
         setSupportActionBar(toolbar)
+    }
+
+    private fun setupFab() {
+        fab.setOnClickListener { sharePlace() }
     }
 
     private fun populateFields() {
@@ -238,6 +244,31 @@ class BookmarkDetailsActivity : AppCompatActivity(),
             uri, resources.getDimensionPixelSize(R.dimen.default_image_width),
             resources.getDimensionPixelSize(R.dimen.default_image_height), this
         )
+    }
+
+    private fun sharePlace() {
+        val bookmarkView = bookmarkDetailsView ?: return
+
+        var mapUrl = ""
+
+        mapUrl = if (bookmarkView.placeId == null) {
+            val location =
+                URLEncoder.encode("${bookmarkView.latitude},${bookmarkView.longtitude}", "utf-8")
+            "https://www.google.com/maps/dir/?api=1&destination=$location"
+        } else {
+            val name = URLEncoder.encode(bookmarkView.name, "utf-8")
+            "https://www.google.com/maps/dir/?api=1&destination=$name&destination_place_id=${bookmarkView.placeId}"
+        }
+
+        val sendIntent = Intent()
+        sendIntent.action = Intent.ACTION_SEND
+
+        sendIntent.putExtra(Intent.EXTRA_TEXT, "Check out ${bookmarkView.name} at:\n$mapUrl")
+        sendIntent.putExtra(Intent.EXTRA_SUBJECT, "Sharing ${bookmarkView.name}")
+
+        sendIntent.type = "text/plain"
+
+        startActivity(sendIntent)
     }
 
     private fun getImageWithPath(filePath: String): Bitmap? {
