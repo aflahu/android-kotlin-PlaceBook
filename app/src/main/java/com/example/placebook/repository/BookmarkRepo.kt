@@ -7,8 +7,10 @@ import com.example.placebook.db.BookmarkDao
 import com.example.placebook.db.PlaceBookDatabase
 import com.example.placebook.model.Bookmark
 import com.google.android.libraries.places.api.model.Place
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
 
-class BookmarkRepo(context: Context) {
+class BookmarkRepo(private val context: Context) {
 
     private var db = PlaceBookDatabase.getInstance(context)
     private var bookmarkDao: BookmarkDao = db.bookmarkDao()
@@ -42,6 +44,11 @@ class BookmarkRepo(context: Context) {
 
     fun updateBookmark(bookmark: Bookmark) {
         bookmarkDao.updateBookmark(bookmark)
+    }
+
+    fun deleteBookmark(bookmark: Bookmark) {
+        bookmark.deleteImage(context)
+        bookmarkDao.deleteBookmark(bookmark)
     }
 
     private fun buildCategoryMap(): HashMap<Place.Type, String> {

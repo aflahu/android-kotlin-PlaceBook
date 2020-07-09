@@ -13,6 +13,7 @@ import android.widget.AdapterView
 import android.widget.ArrayAdapter
 import android.widget.Toast
 import androidx.activity.viewModels
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.FileProvider
 import androidx.lifecycle.Observer
@@ -147,6 +148,10 @@ class BookmarkDetailsActivity : AppCompatActivity(),
                 saveChanges()
                 true
             }
+            R.id.action_delete -> {
+                deleteBookmark()
+                true
+            }
             else -> super.onOptionsItemSelected(item)
         }
     }
@@ -241,6 +246,18 @@ class BookmarkDetailsActivity : AppCompatActivity(),
             resources.getDimensionPixelSize(R.dimen.default_image_width),
             resources.getDimensionPixelSize(R.dimen.default_image_height)
         )
+    }
+
+    private fun deleteBookmark() {
+        val bookmarkView = bookmarkDetailsView ?: return
+
+        AlertDialog.Builder(this).setMessage("Delete?").setPositiveButton("Ok") { _, _ ->
+            bookmarkDetailsViewModel.deleteBookmark(bookmarkView)
+            finish()
+        }
+            .setNegativeButton("Cancel", null)
+            .create()
+            .show()
     }
 
     companion object {
